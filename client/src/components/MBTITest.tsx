@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,48 +6,49 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { computeDimensionConfidence, getProfileConfidence } from "@/lib/psychometrics";
 import type { MBTIResult } from "@/lib/mbti-types";
 
-const MBTI_QUESTIONS = [
-  { q: "At a party do you:", a: "Interact with many, including strangers", b: "Interact with a few, known to you", dichotomy: "e/i" },
-  { q: "Are you more:", a: "Realistic than speculative", b: "Speculative than realistic", dichotomy: "s/n" },
-  { q: "Is it worse to:", a: "Have your head in the clouds", b: "Be in a rut", dichotomy: "s/n" },
-  { q: "Are you more impressed by:", a: "Principles", b: "Emotions", dichotomy: "t/f" },
-  { q: "Are more drawn toward the:", a: "Convincing", b: "Touching", dichotomy: "t/f" },
-  { q: "Do you prefer to work:", a: "To deadlines", b: "Just whenever", dichotomy: "j/p" },
-  { q: "Do you tend to choose:", a: "Rather carefully", b: "Somewhat impulsively", dichotomy: "j/p" },
-  { q: "At parties do you:", a: "Stay late, with increasing energy", b: "Leave early with decreased energy", dichotomy: "e/i" },
-  { q: "Are you more attracted to:", a: "Sensible people", b: "Imaginative people", dichotomy: "s/n" },
-  { q: "Are you more interested in:", a: "What is actual", b: "What is possible", dichotomy: "s/n" },
-];
+type QuestionOption = "a" | "b";
 
 interface MBTITestProps {
   onComplete: (result: MBTIResult) => void;
 }
 
+const getAxisPercentage = (left: number, right: number) => {
+  const total = left + right;
+  if (total <= 0) return [50, 50] as const;
+  const leftPercentage = Math.round((left / total) * 100);
+  return [leftPercentage, 100 - leftPercentage] as const;
+};
+
 export default function MBTITest({ onComplete }: MBTITestProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, QuestionOption>>({});
+  const [questions, setQuestions] = useState<MBTIQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const progress = useMemo(() => {
-    return ((currentQuestion + 1) / MBTI_QUESTIONS.length) * 100;
-  }, [currentQuestion]);
+  useEffect(() => {
+    const boot = async () => {
+      try {
+        setLoading(true);
+        await ensureGuestUser();
+        const items = await fetchQuestions();
+        setQuestions(items);
+      } catch {
+        setError("Falha ao carregar perguntas. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleAnswer = (value: string) => {
-    const newAnswers = { ...answers, [currentQuestion]: value };
-    setAnswers(newAnswers);
+    boot();
+  }, []);
 
-    if (currentQuestion < MBTI_QUESTIONS.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    } else {
-      const result = calculateMBTIResult(newAnswers);
-      onComplete(result);
-    }
-  };
+  const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
+  const progress = useMemo(() => (questions.length ? (answeredCount / questions.length) * 100 : 0), [answeredCount, questions.length]);
 
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
+  const calculateMBTIResult = (currentAnswers: Record<number, QuestionOption>): MBTIResult => {
+    const scores: Record<MBTILetter, number> = { e: 0, i: 0, s: 0, n: 0, t: 0, f: 0, j: 0, p: 0 };
 
   const calculateMBTIResult = (answers: Record<number, string>): MBTIResult => {
     const scores = { e: 0, i: 0, s: 0, n: 0, t: 0, f: 0, j: 0, p: 0 };
@@ -63,22 +64,17 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
       }
     });
 
-    const type =
-      (scores.e > scores.i ? "E" : "I") +
-      (scores.s > scores.n ? "S" : "N") +
-      (scores.t > scores.f ? "T" : "F") +
-      (scores.j > scores.p ? "J" : "P");
+    const [e, i] = getAxisPercentage(scores.e, scores.i);
+    const [s, n] = getAxisPercentage(scores.s, scores.n);
+    const [t, f] = getAxisPercentage(scores.t, scores.f);
+    const [j, p] = getAxisPercentage(scores.j, scores.p);
 
-    const percentages = {
-      e: Math.round((scores.e / (scores.e + scores.i)) * 100),
-      i: Math.round((scores.i / (scores.e + scores.i)) * 100),
-      s: Math.round((scores.s / (scores.s + scores.n)) * 100),
-      n: Math.round((scores.n / (scores.s + scores.n)) * 100),
-      t: Math.round((scores.t / (scores.t + scores.f)) * 100),
-      f: Math.round((scores.f / (scores.t + scores.f)) * 100),
-      j: Math.round((scores.j / (scores.j + scores.p)) * 100),
-      p: Math.round((scores.p / (scores.j + scores.p)) * 100),
+    return {
+      type: (scores.e >= scores.i ? "E" : "I") + (scores.s >= scores.n ? "S" : "N") + (scores.t >= scores.f ? "T" : "F") + (scores.j >= scores.p ? "J" : "P"),
+      scores,
+      percentages: { e, i, s, n, t, f, j, p },
     };
+  };
 
     const dimensionConfidence = computeDimensionConfidence(scores);
     const profileConfidence = getProfileConfidence(dimensionConfidence);
@@ -86,97 +82,50 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
     return { type, scores, percentages, dimensionConfidence, profileConfidence };
   };
 
-  const question = MBTI_QUESTIONS[currentQuestion];
-  const isAnswered = currentQuestion in answers;
+  if (loading) return <div className="p-8 text-center text-slate-200">Carregando perguntas...</div>;
+  if (error) return <div className="p-8 text-center text-red-300">{error}</div>;
+  if (!question) return <div className="p-8 text-center text-slate-200">Sem perguntas disponíveis.</div>;
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
       <div className="w-full max-w-2xl">
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold text-purple-300">
-              Question {currentQuestion + 1} of {MBTI_QUESTIONS.length}
-            </span>
-            <span className="text-sm text-slate-400">
-              {Math.round(progress)}%
-            </span>
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm font-semibold text-purple-300">Pergunta {currentQuestion + 1} de {questions.length}</span>
+            <span className="text-sm text-slate-400">{Math.round(progress)}%</span>
           </div>
           <Progress value={progress} className="h-2 bg-slate-700" />
         </div>
 
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl">
-          <CardContent className="pt-8 pb-8">
-            <h2 className="text-2xl font-bold text-white mb-8 leading-relaxed">
-              {question.q}
-            </h2>
-
+        <Card className="border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardContent className="pb-8 pt-8">
+            <h2 className="mb-8 text-2xl font-bold leading-relaxed text-white">{question.q}</h2>
             <div className="space-y-3">
-              <button
-                onClick={() => handleAnswer("a")}
-                className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left font-medium ${
-                  answers[currentQuestion] === "a"
-                    ? "border-purple-500 bg-purple-500/20 text-purple-100"
-                    : "border-slate-600 bg-slate-800/50 text-slate-300 hover:border-purple-500/50 hover:bg-slate-800"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      answers[currentQuestion] === "a"
-                        ? "border-purple-500 bg-purple-500"
-                        : "border-slate-500"
-                    }`}
-                  >
-                    {answers[currentQuestion] === "a" && (
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    )}
-                  </div>
-                  <span>{question.a}</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleAnswer("b")}
-                className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left font-medium ${
-                  answers[currentQuestion] === "b"
-                    ? "border-blue-500 bg-blue-500/20 text-blue-100"
-                    : "border-slate-600 bg-slate-800/50 text-slate-300 hover:border-blue-500/50 hover:bg-slate-800"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      answers[currentQuestion] === "b"
-                        ? "border-blue-500 bg-blue-500"
-                        : "border-slate-500"
-                    }`}
-                  >
-                    {answers[currentQuestion] === "b" && (
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    )}
-                  </div>
-                  <span>{question.b}</span>
-                </div>
-              </button>
+              {(["a", "b"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setAnswers((prev) => ({ ...prev, [currentQuestion]: option }))}
+                  className={`w-full rounded-lg border-2 p-4 text-left font-medium transition-all duration-200 ${
+                    selectedAnswer === option
+                      ? option === "a"
+                        ? "border-purple-500 bg-purple-500/20 text-purple-100"
+                        : "border-blue-500 bg-blue-500/20 text-blue-100"
+                      : "border-slate-600 bg-slate-800/50 text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  {option === "a" ? question.a : question.b}
+                </button>
+              ))}
             </div>
 
-            <div className="flex gap-3 mt-8">
-              <Button
-                onClick={handlePrevious}
-                disabled={currentQuestion === 0}
-                variant="outline"
-                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Previous
+            <div className="mt-8 flex gap-3">
+              <Button onClick={() => setCurrentQuestion((prev) => Math.max(0, prev - 1))} disabled={currentQuestion === 0} variant="outline" className="flex-1 border-slate-600 text-slate-300">
+                <ChevronLeft className="mr-2 h-4 w-4" />Anterior
               </Button>
-              <Button
-                onClick={() => handleAnswer(answers[currentQuestion] || "a")}
-                disabled={!isAnswered}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {currentQuestion === MBTI_QUESTIONS.length - 1 ? "Finish" : "Next"}
-                <ChevronRight className="w-4 h-4 ml-2" />
+              <Button onClick={handleNext} disabled={!selectedAnswer || submitting} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600">
+                {submitting ? "Finalizando..." : currentQuestion === questions.length - 1 ? "Finalizar" : "Próxima"}
+                <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </CardContent>

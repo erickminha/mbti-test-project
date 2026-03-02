@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -55,17 +56,11 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-4xl">
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center mb-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-5xl font-bold text-white">{result.type}</span>
-              </div>
-            </div>
-            <CardTitle className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              {typeInfo.title}
-            </CardTitle>
+      <div className="w-full max-w-5xl">
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardHeader className="space-y-4 text-center">
+            <div className="mb-4 flex justify-center"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg"><span className="text-3xl font-bold tracking-tight text-white md:text-5xl">{result.type}</span></div></div>
+            <CardTitle className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-4xl font-bold text-transparent">{typeInfo.title}</CardTitle>
             <p className="text-lg text-slate-300">{typeInfo.desc}</p>
             <div className="rounded-lg border border-slate-600 px-4 py-3 text-left text-sm text-slate-300">
               <p className="font-semibold text-white">Confiança do perfil: {Math.round(result.profileConfidence.average * 100)}%</p>
@@ -79,10 +74,8 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
           </CardHeader>
         </Card>
 
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Your Personality Breakdown</CardTitle>
-          </CardHeader>
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardHeader><CardTitle className="text-2xl text-white">Detalhamento do seu perfil</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
