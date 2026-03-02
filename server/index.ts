@@ -3,7 +3,9 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildDynamicInsights, getTypeStaticContent } from "./contentProfiles";
+import { MBTI_QUESTIONS } from "./data/questions";
+import { activatePremium, createGuestUser, getHistory, getPlan, getResultById, saveResult } from "./lib/store";
+import { isSupabaseConfigured } from "./lib/supabase";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,34 +39,64 @@ const createSimplePdfBuffer = (title: string, content: string) => {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
 
-  app.get("/api/types/:type", (req, res) => {
-    const profile = getTypeStaticContent(req.params.type);
+  app.get("/api/health", (_req, res) => res.json({ ok: true, supabase: isSupabaseConfigured }));
 
-    if (!profile) {
-      return res.status(404).json({ error: "Tipo MBTI não encontrado." });
-    }
-
-    return res.json(profile);
+  app.post("/api/auth/guest", async (_req, res) => {
+    res.json(await createGuestUser());
   });
 
-  app.post("/api/insights", (req, res) => {
-    const { type, percentages } = req.body ?? {};
-    const profile = getTypeStaticContent(type ?? "");
+  app.get("/api/questions", (_req, res) => {
+    res.json({ total: MBTI_QUESTIONS.length, items: MBTI_QUESTIONS });
+  });
 
-    if (!profile) {
-      return res.status(404).json({ error: "Tipo MBTI não encontrado." });
-    }
+  app.get("/api/subscription/status/:userId", async (req, res) => {
+    res.json({ userId: req.params.userId, plan: await getPlan(req.params.userId) });
+  });
 
-    if (!percentages || typeof percentages !== "object") {
-      return res.status(400).json({ error: "Percentuais inválidos para geração de insights." });
-    }
-
-    return res.json({
-      staticContent: profile,
-      dynamicInsights: buildDynamicInsights(percentages),
+  app.post("/api/payments/checkout", (req, res) => {
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ message: "userId é obrigatório" });
+    res.json({
+      checkoutUrl: `/checkout/mock?userId=${encodeURIComponent(userId)}`,
+      message: "Integre aqui Stripe/Mercado Pago no ambiente de produção.",
     });
+  });
+
+  app.post("/api/payments/mock/confirm", async (req, res) => {
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ message: "userId é obrigatório" });
+    res.json(await activatePremium(userId));
+  });
+
+  app.post("/api/results", async (req, res) => {
+    const { userId, type, scores, percentages } = req.body || {};
+    if (!userId || !type || !scores || !percentages) {
+      return res.status(400).json({ message: "Payload inválido para salvar resultado" });
+    }
+    const row = await saveResult({ userId, type, scores, percentages });
+    res.status(201).json(row);
+  });
+
+  app.get("/api/results/:userId", async (req, res) => {
+    res.json({ items: await getHistory(req.params.userId) });
+  });
+
+  app.get("/api/reports/:resultId/pdf", async (req, res) => {
+    const result = await getResultById(req.params.resultId);
+    if (!result) return res.status(404).json({ message: "Resultado não encontrado" });
+
+    const plan = await getPlan(result.userId);
+    if (plan !== "premium") {
+      return res.status(402).json({ message: "Recurso premium. Faça upgrade para baixar PDF." });
+    }
+
+    const content = `Tipo ${result.type} | E:${result.percentages.e}% I:${result.percentages.i}% S:${result.percentages.s}% N:${result.percentages.n}% T:${result.percentages.t}% F:${result.percentages.f}% J:${result.percentages.j}% P:${result.percentages.p}%`;
+    const pdf = createSimplePdfBuffer("Relatório MBTI", content);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=mbti-${result.id}.pdf`);
+    res.send(pdf);
   });
 
   const staticPath =
@@ -73,16 +105,7 @@ async function startServer() {
       : path.resolve(__dirname, "..", "dist", "public");
 
   app.use(express.static(staticPath));
-
-  app.get("/api/legal-content", (_req, res) => {
-    res.setHeader("Cache-Control", "public, max-age=300");
-    res.json(legalApiPayload);
-  });
-
-  // Handle client-side routing - serve index.html for all routes
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(staticPath, "index.html"));
-  });
+  app.get("*", (_req, res) => res.sendFile(path.join(staticPath, "index.html")));
 
   const port = process.env.PORT || 3000;
   server.listen(port, () => console.log(`Server running on http://localhost:${port}/`));

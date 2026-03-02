@@ -1,20 +1,15 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ShieldAlert } from "lucide-react";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
-import { getOrAssignVariant, trackEvent } from "@/lib/funnelAnalytics";
+import type { MBTIResult } from "@/types/mbti";
 
 export default function Home() {
   const [testStarted, setTestStarted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [mbtiResult, setMbtiResult] = useState<MBTIResult | null>(null);
-
-  useEffect(() => {
-    getOrAssignVariant();
-    trackEvent("landing_view");
-  }, []);
 
   const handleStartTest = () => {
     trackEvent("test_started");
@@ -63,7 +58,7 @@ export default function Home() {
               Teste de Personalidade MBTI
             </CardTitle>
             <CardDescription className="text-lg text-slate-300">
-              Descubra tendências do seu perfil de personalidade através de perguntas de autorreflexão
+              Descubra seu tipo de personalidade com uma experiência rápida, clara e focada em autoconhecimento.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -73,8 +68,8 @@ export default function Home() {
                   <span className="text-sm font-bold text-white">1</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white mb-1">70 Questões Autênticas</h3>
-                  <p className="text-sm">Inspiradas em modelos de tipologia para apoiar autoconhecimento</p>
+                  <h3 className="mb-1 font-semibold text-white">Perguntas diretas e objetivas</h3>
+                  <p className="text-sm">Fluxo simples para responder sem pressa e com mais clareza.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -111,15 +106,6 @@ export default function Home() {
             <div className="rounded-lg border border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-blue-500/20 p-4">
               <p className="text-sm text-slate-300">
                 <span className="font-semibold text-purple-300">Tempo estimado:</span> 4-6 minutos
-              </p>
-            </div>
-
-            <LegalDisclaimer surface="onboarding" />
-
-            <div className="bg-slate-950/40 border border-slate-700 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-semibold text-white">{marketingLegalReview.title}</p>
-              <p className="text-xs text-slate-300">
-                Termos sensíveis para evitar sem validação formal: {marketingLegalReview.avoidClaims.join(", ")}.
               </p>
               <ul className="list-disc pl-5 space-y-1 text-xs text-slate-400">
                 {marketingLegalReview.guidance.map((item) => (

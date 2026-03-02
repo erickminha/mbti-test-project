@@ -1,212 +1,103 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { RotateCcw, Share2 } from "lucide-react";
+import { RotateCcw, Share2, ShieldAlert, Download, Lock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { buildExperimentSummary, getOrAssignVariant, OfferVariant, trackEvent } from "@/lib/funnelAnalytics";
+import type { MBTILetter, MBTIResult } from "@/types/mbti";
+import { activatePremiumMock, fetchHistory, fetchPlan, getUserId, startCheckout, type StoredResult } from "@/lib/api";
 
-interface MBTIResultsProps {
-  result: MBTIResult;
-  onRestart: () => void;
-}
+const MBTI_TYPES: Record<string, { title: string; desc: string }> = {
+  ISTJ: { title: "Logístico", desc: "Prático, confiável e orientado a responsabilidades." },
+  ISFJ: { title: "Defensor", desc: "Atencioso, dedicado e comprometido com as pessoas." },
+  INFJ: { title: "Advogado", desc: "Idealista, profundo e guiado por valores." },
+  INTJ: { title: "Arquiteto", desc: "Estratégico, independente e focado no longo prazo." },
+  ISTP: { title: "Virtuoso", desc: "Analítico, objetivo e adaptável." },
+  ISFP: { title: "Aventureiro", desc: "Sensível, criativo e espontâneo." },
+  INFP: { title: "Mediador", desc: "Empático, imaginativo e orientado por propósito." },
+  INTP: { title: "Lógico", desc: "Curioso, racional e voltado a ideias complexas." },
+  ESTP: { title: "Empreendedor", desc: "Prático, energético e orientado à ação." },
+  ESFP: { title: "Animador", desc: "Comunicativo, entusiasta e sociável." },
+  ENFP: { title: "Ativista", desc: "Criativo, inspirador e conectado a pessoas." },
+  ENTP: { title: "Inovador", desc: "Inventivo, questionador e estratégico." },
+  ESTJ: { title: "Executivo", desc: "Organizado, direto e focado em resultados." },
+  ESFJ: { title: "Cônsul", desc: "Prestativo, cooperativo e orientado ao grupo." },
+  ENFJ: { title: "Protagonista", desc: "Carismático, empático e mobilizador." },
+  ENTJ: { title: "Comandante", desc: "Decisivo, visionário e orientado a liderança." },
+};
 
-interface TypeContent {
-  type: string;
-  version: string;
-  reviewDate: string;
-  resumo: string;
-  forcas: string[];
-  riscos: string[];
-  carreira: string;
-  relacionamentos: string;
-  desenvolvimento: string;
-}
+const getSafePercentage = (percentages: Partial<Record<MBTILetter, number>>, key: MBTILetter) => {
+  const value = percentages[key];
+  if (typeof value !== "number" || Number.isNaN(value) || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
 
-interface DynamicInsights {
-  focoAtual: string;
-  tomadaDecisao: string;
-  ritmo: string;
-}
-
-export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
-  const [content, setContent] = useState<TypeContent | null>(null);
-  const [insights, setInsights] = useState<DynamicInsights | null>(null);
+export default function MBTIResults({ result, onRestart }: { result: MBTIResult; onRestart: () => void }) {
+  const [plan, setPlan] = useState<"free" | "premium">("free");
+  const [history, setHistory] = useState<StoredResult[]>([]);
 
   useEffect(() => {
-    const loadContent = async () => {
-      const response = await fetch("/api/insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: result.type, percentages: result.percentages }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Falha ao carregar conteúdo do tipo MBTI.");
-      }
-
-      const payload = await response.json();
-      setContent(payload.staticContent);
-      setInsights(payload.dynamicInsights);
+    const load = async () => {
+      const userId = getUserId();
+      if (!userId) return;
+      const [currentPlan, list] = await Promise.all([fetchPlan(userId), fetchHistory(userId)]);
+      setPlan(currentPlan);
+      setHistory(list.slice(0, 5));
     };
+    load().catch(() => undefined);
+  }, []);
 
-    loadContent().catch(console.error);
-  }, [result.type, result.percentages]);
-
-  const chartData = useMemo(
-    () => [
-      { name: "E/I", E: result.percentages.e, I: result.percentages.i },
-      { name: "S/N", S: result.percentages.s, N: result.percentages.n },
-      { name: "T/F", T: result.percentages.t, F: result.percentages.f },
-      { name: "J/P", J: result.percentages.j, P: result.percentages.p },
-    ],
-    [result.percentages],
-  );
-
-  const beginCheckout = () => {
-    trackEvent("checkout_started");
-    setCheckoutOpen(true);
+  const typeInfo = MBTI_TYPES[result.type] || { title: "Perfil não identificado", desc: "Não foi possível identificar o tipo com segurança." };
+  const percentages = {
+    e: getSafePercentage(result.percentages, "e"),
+    i: getSafePercentage(result.percentages, "i"),
+    s: getSafePercentage(result.percentages, "s"),
+    n: getSafePercentage(result.percentages, "n"),
+    t: getSafePercentage(result.percentages, "t"),
+    f: getSafePercentage(result.percentages, "f"),
+    j: getSafePercentage(result.percentages, "j"),
+    p: getSafePercentage(result.percentages, "p"),
   };
 
-  const approvePayment = () => {
-    if (!selectedPrice) return;
-    trackEvent("payment_approved", { amount: selectedPrice });
-    setPaymentDone(true);
+  const upgrade = async () => {
+    const userId = getUserId();
+    if (!userId) return;
+    await startCheckout(userId);
+    await activatePremiumMock(userId);
+    setPlan("premium");
   };
 
-  const sendFeedback = (score: number) => {
-    trackEvent("post_purchase_feedback", { satisfactionScore: score });
-    setFeedbackSent(true);
-  };
-
-  const askRefund = () => {
-    trackEvent("refund_requested");
+  const downloadPdf = () => {
+    if (!result.id) return;
+    window.open(`/api/reports/${result.id}/pdf`, "_blank");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
       <div className="w-full max-w-5xl">
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center mb-4">
-              <div className="w-24 h-24 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-5xl font-bold text-white">{result.type}</span>
-              </div>
-            </div>
-            <CardTitle className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              Resultado MBTI
-            </CardTitle>
-            <p className="text-lg text-slate-300">{content?.resumo ?? "Carregando conteúdo editorial..."}</p>
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardHeader className="space-y-4 text-center">
+            <div className="mb-4 flex justify-center"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg"><span className="text-3xl font-bold tracking-tight text-white md:text-5xl">{result.type}</span></div></div>
+            <CardTitle className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-4xl font-bold text-transparent">{typeInfo.title}</CardTitle>
+            <p className="text-lg text-slate-300">{typeInfo.desc}</p>
           </CardHeader>
         </Card>
 
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Seu gráfico de preferências</CardTitle>
-          </CardHeader>
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardHeader><CardTitle className="text-2xl text-white">Detalhamento do seu perfil</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                <XAxis dataKey="name" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }}
-                  labelStyle={{ color: "#e2e8f0" }}
-                />
-                <Legend />
-                <Bar dataKey="E" fill="#a855f7" />
-                <Bar dataKey="I" fill="#3b82f6" />
-                <Bar dataKey="S" fill="#f59e0b" />
-                <Bar dataKey="N" fill="#8b5cf6" />
-                <Bar dataKey="T" fill="#06b6d4" />
-                <Bar dataKey="F" fill="#ec4899" />
-                <Bar dataKey="J" fill="#10b981" />
-                <Bar dataKey="P" fill="#f97316" />
-              </BarChart>
-            </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={280}><BarChart data={[{ name: "E/I", E: percentages.e, I: percentages.i }, { name: "S/N", S: percentages.s, N: percentages.n }, { name: "T/F", T: percentages.t, F: percentages.f }, { name: "J/P", J: percentages.j, P: percentages.p }]}><CartesianGrid strokeDasharray="3 3" stroke="#475569" /><XAxis dataKey="name" stroke="#94a3b8" /><YAxis stroke="#94a3b8" domain={[0, 100]} /><Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }} /><Legend /><Bar dataKey="E" fill="#a855f7" /><Bar dataKey="I" fill="#3b82f6" /><Bar dataKey="S" fill="#f59e0b" /><Bar dataKey="N" fill="#8b5cf6" /><Bar dataKey="T" fill="#06b6d4" /><Bar dataKey="F" fill="#ec4899" /><Bar dataKey="J" fill="#10b981" /><Bar dataKey="P" fill="#f97316" /></BarChart></ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {content && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Card className="border-purple-500/30 bg-slate-900/50">
-              <CardHeader>
-                <CardTitle className="text-white">Forças</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-300">
-                <ul className="list-disc ml-5 space-y-2">
-                  {content.forcas.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+        <Card className="mb-6 border-amber-400/30 bg-amber-500/10"><CardContent className="pt-6"><div className="mb-2 flex items-center gap-2 text-amber-300"><ShieldAlert className="h-4 w-4" /><p className="text-sm font-semibold">Interpretação responsável</p></div><p className="text-sm text-slate-300">Ferramenta de autoconhecimento. Não substitui diagnóstico ou avaliação psicológica profissional.</p></CardContent></Card>
 
-            <Card className="border-purple-500/30 bg-slate-900/50">
-              <CardHeader>
-                <CardTitle className="text-white">Riscos</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-300">
-                <ul className="list-disc ml-5 space-y-2">
-                  {content.riscos.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+        <Card className="mb-6 border-blue-400/30 bg-blue-500/10"><CardContent className="pt-6"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-blue-300">Plano atual: {plan.toUpperCase()}</p><p className="text-sm text-slate-300">Premium libera PDF e histórico completo.</p></div>{plan === "free" ? <Button onClick={upgrade}><Lock className="mr-2 h-4 w-4" />Fazer upgrade (mock)</Button> : <Button onClick={downloadPdf}><Download className="mr-2 h-4 w-4" />Baixar PDF</Button>}</div></CardContent></Card>
 
-            <Card className="border-purple-500/30 bg-slate-900/50">
-              <CardHeader>
-                <CardTitle className="text-white">Carreira</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-300">{content.carreira}</CardContent>
-            </Card>
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50"><CardHeader><CardTitle className="text-lg text-white">Histórico recente</CardTitle></CardHeader><CardContent><div className="space-y-2 text-slate-300">{history.length === 0 ? <p className="text-sm">Sem histórico ainda.</p> : history.map((item) => <p key={item.id} className="text-sm">{new Date(item.createdAt).toLocaleString("pt-BR")} — <strong>{item.type}</strong></p>)}</div></CardContent></Card>
 
-            <Card className="border-purple-500/30 bg-slate-900/50">
-              <CardHeader>
-                <CardTitle className="text-white">Relacionamentos</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-300">{content.relacionamentos}</CardContent>
-            </Card>
-
-            <Card className="border-purple-500/30 bg-slate-900/50 md:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-white">Desenvolvimento</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-300">{content.desenvolvimento}</CardContent>
-            </Card>
-          </div>
-        )}
-
-        {insights && (
-          <Card className="border-blue-500/30 bg-slate-900/50 mb-6">
-            <CardHeader>
-              <CardTitle className="text-white">Insights dinâmicos (sessão atual)</CardTitle>
-            </CardHeader>
-            <CardContent className="text-slate-300 space-y-2">
-              <p>{insights.focoAtual}</p>
-              <p>{insights.tomadaDecisao}</p>
-              <p>{insights.ritmo}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="flex gap-3">
-          <Button
-            onClick={onRestart}
-            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-6 text-lg rounded-lg shadow-lg transition-all duration-300"
-          >
-            <RotateCcw className="w-5 h-5 mr-2" />
-            Refazer teste
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 font-semibold py-6 text-lg rounded-lg"
-          >
-            <Share2 className="w-5 h-5 mr-2" />
-            Compartilhar
-          </Button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button onClick={onRestart} className="flex-1 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 py-6 text-lg font-semibold text-white"><RotateCcw className="mr-2 h-5 w-5" />Refazer teste</Button>
+          <Button variant="outline" className="flex-1 rounded-lg border-slate-600 py-6 text-lg font-semibold text-slate-300" onClick={() => navigator.clipboard?.writeText(window.location.href)}><Share2 className="mr-2 h-5 w-5" />Copiar link</Button>
         </div>
       </div>
     </div>

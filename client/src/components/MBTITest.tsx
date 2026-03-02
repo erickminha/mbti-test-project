@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { computeDimensionConfidence, getProfileConfidence } from "@/lib/psychometrics";
-import type { MBTIResult } from "@/lib/mbti-types";
+import type { MBTILetter, MBTIResult } from "@/types/mbti";
+import { ensureGuestUser, fetchQuestions, saveResult, type MBTIQuestion } from "@/lib/api";
 
 type QuestionOption = "a" | "b";
 
@@ -50,18 +50,11 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
   const calculateMBTIResult = (currentAnswers: Record<number, QuestionOption>): MBTIResult => {
     const scores: Record<MBTILetter, number> = { e: 0, i: 0, s: 0, n: 0, t: 0, f: 0, j: 0, p: 0 };
 
-  const calculateMBTIResult = (answers: Record<number, string>): MBTIResult => {
-    const scores = { e: 0, i: 0, s: 0, n: 0, t: 0, f: 0, j: 0, p: 0 };
-
-    Object.entries(answers).forEach(([index, answer]) => {
-      const question = MBTI_QUESTIONS[parseInt(index)];
-      const [first, second] = question.dichotomy.split("/");
-      
-      if (answer === "a") {
-        scores[first as keyof typeof scores]++;
-      } else {
-        scores[second as keyof typeof scores]++;
-      }
+    Object.entries(currentAnswers).forEach(([index, answer]) => {
+      const question = questions[Number(index)];
+      if (!question) return;
+      const [first, second] = question.dichotomy.split("/") as [MBTILetter, MBTILetter];
+      scores[answer === "a" ? first : second] += 1;
     });
 
     const [e, i] = getAxisPercentage(scores.e, scores.i);
@@ -76,10 +69,28 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
     };
   };
 
-    const dimensionConfidence = computeDimensionConfidence(scores);
-    const profileConfidence = getProfileConfidence(dimensionConfidence);
+  const question = questions[currentQuestion];
+  const selectedAnswer = answers[currentQuestion];
 
-    return { type, scores, percentages, dimensionConfidence, profileConfidence };
+  const handleNext = async () => {
+    if (!selectedAnswer || !question) return;
+
+    if (currentQuestion === questions.length - 1) {
+      try {
+        setSubmitting(true);
+        const result = calculateMBTIResult(answers);
+        const userId = await ensureGuestUser();
+        const saved = await saveResult({ ...result, userId });
+        onComplete(saved);
+      } catch {
+        setError("Não foi possível finalizar o teste.");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    setCurrentQuestion((prev) => prev + 1);
   };
 
   if (loading) return <div className="p-8 text-center text-slate-200">Carregando perguntas...</div>;
