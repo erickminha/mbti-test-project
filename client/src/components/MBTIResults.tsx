@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { RotateCcw, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { buildExperimentSummary, getOrAssignVariant, OfferVariant, trackEvent } from "@/lib/funnelAnalytics";
 
-const MBTI_TYPES: Record<string, any> = {
+const MBTI_TYPES: Record<string, { title: string; desc: string }> = {
   ISTJ: { title: "The Logistician", desc: "Practical, fact-oriented, reliable, and responsible" },
   ISFJ: { title: "The Defender", desc: "Warm, conscientious, and dedicated to serving others" },
   INFJ: { title: "The Advocate", desc: "Insightful, principled, and passionate about their values" },
@@ -61,11 +62,7 @@ const offerDefinition: Record<
 };
 
 interface MBTIResultsProps {
-  result: {
-    type: string;
-    scores: Record<string, number>;
-    percentages: Record<string, number>;
-  };
+  result: MBTIResult;
   onRestart: () => void;
 }
 
@@ -131,10 +128,8 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
           </CardHeader>
         </Card>
 
-        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Your Personality Breakdown</CardTitle>
-          </CardHeader>
+        <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
+          <CardHeader><CardTitle className="text-2xl text-white">Detalhamento do seu perfil</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
