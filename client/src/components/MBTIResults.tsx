@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCcw, Share2, ShieldAlert, Download, Lock } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import type { MBTILetter, MBTIResult } from "@/types/mbti";
-import { activatePremiumMock, fetchHistory, fetchPlan, getUserId, startCheckout, type StoredResult } from "@/lib/api";
+import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
 
 const MBTI_TYPES: Record<string, { title: string; desc: string }> = {
   ISTJ: { title: "Logístico", desc: "Prático, confiável e orientado a responsabilidades." },
@@ -95,9 +94,23 @@ export default function MBTIResults({ result, onRestart }: { result: MBTIResult;
 
         <Card className="mb-6 border-purple-500/30 bg-slate-900/50"><CardHeader><CardTitle className="text-lg text-white">Histórico recente</CardTitle></CardHeader><CardContent><div className="space-y-2 text-slate-300">{history.length === 0 ? <p className="text-sm">Sem histórico ainda.</p> : history.map((item) => <p key={item.id} className="text-sm">{new Date(item.createdAt).toLocaleString("pt-BR")} — <strong>{item.type}</strong></p>)}</div></CardContent></Card>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button onClick={onRestart} className="flex-1 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 py-6 text-lg font-semibold text-white"><RotateCcw className="mr-2 h-5 w-5" />Refazer teste</Button>
-          <Button variant="outline" className="flex-1 rounded-lg border-slate-600 py-6 text-lg font-semibold text-slate-300" onClick={() => navigator.clipboard?.writeText(window.location.href)}><Share2 className="mr-2 h-5 w-5" />Copiar link</Button>
+        <LegalDisclaimer surface="results" />
+
+        <div className="flex gap-3">
+          <Button
+            onClick={onRestart}
+            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-6 text-lg rounded-lg shadow-lg transition-all duration-300"
+          >
+            <RotateCcw className="w-5 h-5 mr-2" />
+            Take Test Again
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 font-semibold py-6 text-lg rounded-lg"
+          >
+            <Share2 className="w-5 h-5 mr-2" />
+            Share Result
+          </Button>
         </div>
       </div>
     </div>

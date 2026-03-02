@@ -1,48 +1,43 @@
-const ANALYTICS_SCRIPT_ID = "umami-analytics-script";
+export interface AnalyticsScriptConfig {
+  src: string;
+  websiteId: string;
+}
 
-const normalizeEndpoint = (value?: string) => {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.includes("%VITE_ANALYTICS_ENDPOINT%")) {
-    return null;
+function isHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
   }
+}
 
-  return trimmed.replace(/\/$/, "");
-};
-
-const normalizeWebsiteId = (value?: string) => {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.includes("%VITE_ANALYTICS_WEBSITE_ID%")) {
-    return null;
-  }
-
-  return trimmed;
-};
-
-export const initAnalytics = () => {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  const endpoint = normalizeEndpoint(import.meta.env.VITE_ANALYTICS_ENDPOINT);
-  const websiteId = normalizeWebsiteId(import.meta.env.VITE_ANALYTICS_WEBSITE_ID);
-
+export function buildAnalyticsScriptConfig(endpoint?: string, websiteId?: string): AnalyticsScriptConfig | null {
   if (!endpoint || !websiteId) {
-    if (import.meta.env.DEV) {
-      console.info("[analytics] Umami desativado: variáveis de ambiente ausentes.");
-    }
-    return;
+    return null;
   }
 
-  if (document.getElementById(ANALYTICS_SCRIPT_ID)) {
+  const normalizedEndpoint = endpoint.trim().replace(/\/$/, "");
+  const normalizedWebsiteId = websiteId.trim();
+
+  if (!isHttpUrl(normalizedEndpoint) || normalizedWebsiteId.length === 0) {
+    return null;
+  }
+
+  return {
+    src: `${normalizedEndpoint}/umami`,
+    websiteId: normalizedWebsiteId,
+  };
+}
+
+export function injectAnalyticsScript(config: AnalyticsScriptConfig | null): void {
+  if (!config) {
     return;
   }
 
   const script = document.createElement("script");
-  script.id = ANALYTICS_SCRIPT_ID;
   script.defer = true;
-  script.src = `${endpoint}/umami`;
-  script.setAttribute("data-website-id", websiteId);
+  script.src = config.src;
+  script.setAttribute("data-website-id", config.websiteId);
   document.body.appendChild(script);
-};
+}

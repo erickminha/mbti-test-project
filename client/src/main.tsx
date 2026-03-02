@@ -1,7 +1,14 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { initAnalytics } from "./lib/analytics";
+import { buildAnalyticsScriptConfig, injectAnalyticsScript } from "./lib/analytics";
+
+const analyticsConfig = buildAnalyticsScriptConfig(
+  import.meta.env.VITE_ANALYTICS_ENDPOINT,
+  import.meta.env.VITE_ANALYTICS_WEBSITE_ID,
+);
+
+injectAnalyticsScript(analyticsConfig);
 
 const rootElement = document.getElementById("root");
 

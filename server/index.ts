@@ -1,3 +1,4 @@
+import { legalApiPayload } from "../shared/content/legal";
 import express from "express";
 import { createServer } from "http";
 import path from "path";
@@ -103,7 +104,16 @@ async function startServer() {
       : path.resolve(__dirname, "..", "dist", "public");
 
   app.use(express.static(staticPath));
-  app.get("*", (_req, res) => res.sendFile(path.join(staticPath, "index.html")));
+
+  app.get("/api/legal-content", (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.json(legalApiPayload);
+  });
+
+  // Handle client-side routing - serve index.html for all routes
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(staticPath, "index.html"));
+  });
 
   const port = process.env.PORT || 3000;
   server.listen(port, () => console.log(`Server running on http://localhost:${port}/`));
