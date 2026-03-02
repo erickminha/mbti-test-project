@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronRight, ShieldAlert } from "lucide-react";
@@ -12,11 +12,13 @@ export default function Home() {
   const [mbtiResult, setMbtiResult] = useState<MBTIResult | null>(null);
 
   const handleStartTest = () => {
+    trackEvent("test_started");
     setTestStarted(true);
   };
 
   const handleTestComplete = (result: MBTIResult) => {
     setMbtiResult(result);
+    trackEvent("test_completed");
     setTestCompleted(true);
   };
 
@@ -105,6 +107,11 @@ export default function Home() {
               <p className="text-sm text-slate-300">
                 <span className="font-semibold text-purple-300">Tempo estimado:</span> 4-6 minutos
               </p>
+              <ul className="list-disc pl-5 space-y-1 text-xs text-slate-400">
+                {marketingLegalReview.guidance.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
 
             <Button

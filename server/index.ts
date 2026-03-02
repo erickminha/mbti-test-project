@@ -1,3 +1,4 @@
+import { legalApiPayload } from "../shared/content/legal";
 import express from "express";
 import { createServer } from "http";
 import path from "path";

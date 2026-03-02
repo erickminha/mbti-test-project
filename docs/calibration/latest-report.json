@@ -1,0 +1,58 @@
+{
+  "generatedAt": "2026-03-02T18:34:14.941Z",
+  "sampleSize": 6,
+  "sampleWarning": "Amostra pequena (6). Recomendada >= 30.",
+  "goals": {
+    "alphaOverall": 0.7,
+    "alphaByDimension": 0.6,
+    "testRetest": 0.75,
+    "shortVsFull": 0.8,
+    "adaptiveVsFull": 0.8,
+    "maxDimensionError": 0.2,
+    "minProfileConfidence": 0.68,
+    "minSampleSize": 30
+  },
+  "clarity": {
+    "average": 4.17,
+    "min": 3,
+    "max": 5
+  },
+  "reliability": {
+    "alphaOverall": 0.47,
+    "alphaByDimension": {
+      "ei": 0.5,
+      "sn": 0.533,
+      "tf": -1,
+      "jp": -1
+    },
+    "alphaOverallBootstrap95CI": [
+      -0.629,
+      0.749
+    ],
+    "testRetestCorrelation": 0.967,
+    "testRetestBootstrap95CI": [
+      0.929,
+      1
+    ],
+    "shortVsFullCorrelation": 0.832,
+    "adaptiveVsFullCorrelation": 0.953
+  },
+  "modelComparison": {
+    "rulesMeanDimensionError": 0.267,
+    "adaptiveMeanDimensionError": 0.3,
+    "preferredModel": "rules"
+  },
+  "premiumGate": {
+    "decision": "NO-GO",
+    "breakdown": {
+      "alphaOverall": false,
+      "alphaByDimension": false,
+      "testRetest": true,
+      "shortVsFull": true,
+      "adaptiveVsFull": true,
+      "dimensionError": false,
+      "profileConfidence": true,
+      "sampleSize": false
+    }
+  }
+}
