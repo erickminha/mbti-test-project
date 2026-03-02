@@ -3,8 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { MBTI_QUESTIONS } from "./data/questions";
-import { activatePremium, createGuestUser, getHistory, getPlan, getResultById, saveResult } from "./lib/store";
+import { buildDynamicInsights, getTypeStaticContent } from "./contentProfiles";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,64 +37,34 @@ const createSimplePdfBuffer = (title: string, content: string) => {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json());
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  app.get("/api/types/:type", (req, res) => {
+    const profile = getTypeStaticContent(req.params.type);
 
-  app.post("/api/auth/guest", (_req, res) => {
-    res.json(createGuestUser());
+    if (!profile) {
+      return res.status(404).json({ error: "Tipo MBTI não encontrado." });
+    }
+
+    return res.json(profile);
   });
 
-  app.get("/api/questions", (_req, res) => {
-    res.json({ total: MBTI_QUESTIONS.length, items: MBTI_QUESTIONS });
-  });
+  app.post("/api/insights", (req, res) => {
+    const { type, percentages } = req.body ?? {};
+    const profile = getTypeStaticContent(type ?? "");
 
-  app.get("/api/subscription/status/:userId", (req, res) => {
-    res.json({ userId: req.params.userId, plan: getPlan(req.params.userId) });
-  });
+    if (!profile) {
+      return res.status(404).json({ error: "Tipo MBTI não encontrado." });
+    }
 
-  app.post("/api/payments/checkout", (req, res) => {
-    const { userId } = req.body || {};
-    if (!userId) return res.status(400).json({ message: "userId é obrigatório" });
-    res.json({
-      checkoutUrl: `/checkout/mock?userId=${encodeURIComponent(userId)}`,
-      message: "Integre aqui Stripe/Mercado Pago no ambiente de produção.",
+    if (!percentages || typeof percentages !== "object") {
+      return res.status(400).json({ error: "Percentuais inválidos para geração de insights." });
+    }
+
+    return res.json({
+      staticContent: profile,
+      dynamicInsights: buildDynamicInsights(percentages),
     });
-  });
-
-  app.post("/api/payments/mock/confirm", (req, res) => {
-    const { userId } = req.body || {};
-    if (!userId) return res.status(400).json({ message: "userId é obrigatório" });
-    res.json(activatePremium(userId));
-  });
-
-  app.post("/api/results", (req, res) => {
-    const { userId, type, scores, percentages } = req.body || {};
-    if (!userId || !type || !scores || !percentages) {
-      return res.status(400).json({ message: "Payload inválido para salvar resultado" });
-    }
-    const row = saveResult({ userId, type, scores, percentages });
-    res.status(201).json(row);
-  });
-
-  app.get("/api/results/:userId", (req, res) => {
-    res.json({ items: getHistory(req.params.userId) });
-  });
-
-  app.get("/api/reports/:resultId/pdf", (req, res) => {
-    const result = getResultById(req.params.resultId);
-    if (!result) return res.status(404).json({ message: "Resultado não encontrado" });
-
-    const plan = getPlan(result.userId);
-    if (plan !== "premium") {
-      return res.status(402).json({ message: "Recurso premium. Faça upgrade para baixar PDF." });
-    }
-
-    const content = `Tipo ${result.type} | E:${result.percentages.e}% I:${result.percentages.i}% S:${result.percentages.s}% N:${result.percentages.n}% T:${result.percentages.t}% F:${result.percentages.f}% J:${result.percentages.j}% P:${result.percentages.p}%`;
-    const pdf = createSimplePdfBuffer("Relatório MBTI", content);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename=mbti-${result.id}.pdf`);
-    res.send(pdf);
   });
 
   const staticPath =
