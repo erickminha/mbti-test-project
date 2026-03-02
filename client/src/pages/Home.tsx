@@ -1,24 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronRight } from "lucide-react";
-import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
-import { marketingLegalReview } from "@shared/content/legal";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
-import type { MBTIResult } from "@/lib/mbti-types";
+import { getOrAssignVariant, trackEvent } from "@/lib/funnelAnalytics";
 
 export default function Home() {
   const [testStarted, setTestStarted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [mbtiResult, setMbtiResult] = useState<MBTIResult | null>(null);
 
+  useEffect(() => {
+    getOrAssignVariant();
+    trackEvent("landing_view");
+  }, []);
+
   const handleStartTest = () => {
+    trackEvent("test_started");
     setTestStarted(true);
   };
 
   const handleTestComplete = (result: MBTIResult) => {
     setMbtiResult(result);
+    trackEvent("test_completed");
     setTestCompleted(true);
   };
 
