@@ -1,74 +1,58 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RotateCcw, Share2, ShieldAlert, Download, Lock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { RotateCcw, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
+import type { MBTIResult } from "@/lib/mbti-types";
 
 const MBTI_TYPES: Record<string, { title: string; desc: string }> = {
-  ISTJ: { title: "Logístico", desc: "Prático, confiável e orientado a responsabilidades." },
-  ISFJ: { title: "Defensor", desc: "Atencioso, dedicado e comprometido com as pessoas." },
-  INFJ: { title: "Advogado", desc: "Idealista, profundo e guiado por valores." },
-  INTJ: { title: "Arquiteto", desc: "Estratégico, independente e focado no longo prazo." },
-  ISTP: { title: "Virtuoso", desc: "Analítico, objetivo e adaptável." },
-  ISFP: { title: "Aventureiro", desc: "Sensível, criativo e espontâneo." },
-  INFP: { title: "Mediador", desc: "Empático, imaginativo e orientado por propósito." },
-  INTP: { title: "Lógico", desc: "Curioso, racional e voltado a ideias complexas." },
-  ESTP: { title: "Empreendedor", desc: "Prático, energético e orientado à ação." },
-  ESFP: { title: "Animador", desc: "Comunicativo, entusiasta e sociável." },
-  ENFP: { title: "Ativista", desc: "Criativo, inspirador e conectado a pessoas." },
-  ENTP: { title: "Inovador", desc: "Inventivo, questionador e estratégico." },
-  ESTJ: { title: "Executivo", desc: "Organizado, direto e focado em resultados." },
-  ESFJ: { title: "Cônsul", desc: "Prestativo, cooperativo e orientado ao grupo." },
-  ENFJ: { title: "Protagonista", desc: "Carismático, empático e mobilizador." },
-  ENTJ: { title: "Comandante", desc: "Decisivo, visionário e orientado a liderança." },
+  ISTJ: { title: "The Logistician", desc: "Practical, fact-oriented, reliable, and responsible" },
+  ISFJ: { title: "The Defender", desc: "Warm, conscientious, and dedicated to serving others" },
+  INFJ: { title: "The Advocate", desc: "Insightful, principled, and passionate about their values" },
+  INTJ: { title: "The Architect", desc: "Strategic, independent, and focused on long-term goals" },
+  ISTP: { title: "The Virtuoso", desc: "Practical, logical, and adaptable" },
+  ISFP: { title: "The Adventurer", desc: "Artistic, sensitive, and adventurous" },
+  INFP: { title: "The Mediator", desc: "Idealistic, creative, and compassionate" },
+  INTP: { title: "The Logician", desc: "Analytical, innovative, and curious" },
+  ESTP: { title: "The Entrepreneur", desc: "Energetic, pragmatic, and action-oriented" },
+  ESFP: { title: "The Entertainer", desc: "Spontaneous, friendly, and outgoing" },
+  ENFP: { title: "The Campaigner", desc: "Enthusiastic, creative, and people-oriented" },
+  ENTP: { title: "The Debater", desc: "Innovative, curious, and argumentative" },
+  ESTJ: { title: "The Executive", desc: "Organized, logical, and leadership-oriented" },
+  ESFJ: { title: "The Consul", desc: "Warm, responsible, and people-focused" },
+  ENFJ: { title: "The Protagonist", desc: "Charismatic, empathetic, and inspiring" },
+  ENTJ: { title: "The Commander", desc: "Strategic, decisive, and commanding" },
 };
 
-const getSafePercentage = (percentages: Partial<Record<MBTILetter, number>>, key: MBTILetter) => {
-  const value = percentages[key];
-  if (typeof value !== "number" || Number.isNaN(value) || !Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
+const PREMIUM_GOALS = {
+  minDimensionConfidence: 0.62,
+  minProfileConfidence: 0.68,
 };
 
-export default function MBTIResults({ result, onRestart }: { result: MBTIResult; onRestart: () => void }) {
-  const [plan, setPlan] = useState<"free" | "premium">("free");
-  const [history, setHistory] = useState<StoredResult[]>([]);
+const LEVEL_LABEL: Record<"low" | "medium" | "high", string> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+};
 
-  useEffect(() => {
-    const load = async () => {
-      const userId = getUserId();
-      if (!userId) return;
-      const [currentPlan, list] = await Promise.all([fetchPlan(userId), fetchHistory(userId)]);
-      setPlan(currentPlan);
-      setHistory(list.slice(0, 5));
-    };
-    load().catch(() => undefined);
-  }, []);
+interface MBTIResultsProps {
+  result: MBTIResult;
+  onRestart: () => void;
+}
 
-  const typeInfo = MBTI_TYPES[result.type] || { title: "Perfil não identificado", desc: "Não foi possível identificar o tipo com segurança." };
-  const percentages = {
-    e: getSafePercentage(result.percentages, "e"),
-    i: getSafePercentage(result.percentages, "i"),
-    s: getSafePercentage(result.percentages, "s"),
-    n: getSafePercentage(result.percentages, "n"),
-    t: getSafePercentage(result.percentages, "t"),
-    f: getSafePercentage(result.percentages, "f"),
-    j: getSafePercentage(result.percentages, "j"),
-    p: getSafePercentage(result.percentages, "p"),
-  };
+export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
+  const typeInfo = MBTI_TYPES[result.type] || { title: "Unknown", desc: "Unknown type" };
+  const canUnlockPremium =
+    result.profileConfidence.average >= PREMIUM_GOALS.minProfileConfidence &&
+    result.dimensionConfidence.every((dimension) => dimension.confidence >= PREMIUM_GOALS.minDimensionConfidence);
 
-  const upgrade = async () => {
-    const userId = getUserId();
-    if (!userId) return;
-    await startCheckout(userId);
-    await activatePremiumMock(userId);
-    setPlan("premium");
-  };
-
-  const downloadPdf = () => {
-    if (!result.id) return;
-    window.open(`/api/reports/${result.id}/pdf`, "_blank");
-  };
+  const chartData = [
+    { name: "E/I", E: result.percentages.e, I: result.percentages.i },
+    { name: "S/N", S: result.percentages.s, N: result.percentages.n },
+    { name: "T/F", T: result.percentages.t, F: result.percentages.f },
+    { name: "J/P", J: result.percentages.j, P: result.percentages.p },
+  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
@@ -78,23 +62,62 @@ export default function MBTIResults({ result, onRestart }: { result: MBTIResult;
             <div className="mb-4 flex justify-center"><div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-blue-500 shadow-lg"><span className="text-3xl font-bold tracking-tight text-white md:text-5xl">{result.type}</span></div></div>
             <CardTitle className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-4xl font-bold text-transparent">{typeInfo.title}</CardTitle>
             <p className="text-lg text-slate-300">{typeInfo.desc}</p>
+            <div className="rounded-lg border border-slate-600 px-4 py-3 text-left text-sm text-slate-300">
+              <p className="font-semibold text-white">Confiança do perfil: {Math.round(result.profileConfidence.average * 100)}%</p>
+              <p className="text-slate-400">
+                Menor dimensão: {result.profileConfidence.minimum.label} ({Math.round(result.profileConfidence.minimum.confidence * 100)}%)
+              </p>
+              <p className={canUnlockPremium ? "text-emerald-400" : "text-amber-400"}>
+                Premium gate: {canUnlockPremium ? "GO" : "NO-GO"}
+              </p>
+            </div>
           </CardHeader>
         </Card>
 
         <Card className="mb-6 border-purple-500/30 bg-slate-900/50 shadow-2xl backdrop-blur-sm">
           <CardHeader><CardTitle className="text-2xl text-white">Detalhamento do seu perfil</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}><BarChart data={[{ name: "E/I", E: percentages.e, I: percentages.i }, { name: "S/N", S: percentages.s, N: percentages.n }, { name: "T/F", T: percentages.t, F: percentages.f }, { name: "J/P", J: percentages.j, P: percentages.p }]}><CartesianGrid strokeDasharray="3 3" stroke="#475569" /><XAxis dataKey="name" stroke="#94a3b8" /><YAxis stroke="#94a3b8" domain={[0, 100]} /><Tooltip contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }} /><Legend /><Bar dataKey="E" fill="#a855f7" /><Bar dataKey="I" fill="#3b82f6" /><Bar dataKey="S" fill="#f59e0b" /><Bar dataKey="N" fill="#8b5cf6" /><Bar dataKey="T" fill="#06b6d4" /><Bar dataKey="F" fill="#ec4899" /><Bar dataKey="J" fill="#10b981" /><Bar dataKey="P" fill="#f97316" /></BarChart></ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }}
+                  labelStyle={{ color: "#e2e8f0" }}
+                />
+                <Legend />
+                <Bar dataKey="E" fill="#a855f7" />
+                <Bar dataKey="I" fill="#3b82f6" />
+                <Bar dataKey="S" fill="#f59e0b" />
+                <Bar dataKey="N" fill="#8b5cf6" />
+                <Bar dataKey="T" fill="#06b6d4" />
+                <Bar dataKey="F" fill="#ec4899" />
+                <Bar dataKey="J" fill="#10b981" />
+                <Bar dataKey="P" fill="#f97316" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="mb-6 border-amber-400/30 bg-amber-500/10"><CardContent className="pt-6"><div className="mb-2 flex items-center gap-2 text-amber-300"><ShieldAlert className="h-4 w-4" /><p className="text-sm font-semibold">Interpretação responsável</p></div><p className="text-sm text-slate-300">Ferramenta de autoconhecimento. Não substitui diagnóstico ou avaliação psicológica profissional.</p></CardContent></Card>
-
-        <Card className="mb-6 border-blue-400/30 bg-blue-500/10"><CardContent className="pt-6"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-blue-300">Plano atual: {plan.toUpperCase()}</p><p className="text-sm text-slate-300">Premium libera PDF e histórico completo.</p></div>{plan === "free" ? <Button onClick={upgrade}><Lock className="mr-2 h-4 w-4" />Fazer upgrade (mock)</Button> : <Button onClick={downloadPdf}><Download className="mr-2 h-4 w-4" />Baixar PDF</Button>}</div></CardContent></Card>
-
-        <Card className="mb-6 border-purple-500/30 bg-slate-900/50"><CardHeader><CardTitle className="text-lg text-white">Histórico recente</CardTitle></CardHeader><CardContent><div className="space-y-2 text-slate-300">{history.length === 0 ? <p className="text-sm">Sem histórico ainda.</p> : history.map((item) => <p key={item.id} className="text-sm">{new Date(item.createdAt).toLocaleString("pt-BR")} — <strong>{item.type}</strong></p>)}</div></CardContent></Card>
-
-        <LegalDisclaimer surface="results" />
+        <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
+          <CardHeader>
+            <CardTitle className="text-2xl text-white">Indicador de confiança por dimensão</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {result.dimensionConfidence.map((dimension) => (
+              <div key={dimension.dimension}>
+                <div className="mb-2 flex items-center justify-between text-sm text-slate-200">
+                  <span>{dimension.label}</span>
+                  <span>
+                    {dimension.dominant} sobre {dimension.opposite} · {Math.round(dimension.confidence * 100)}% ({LEVEL_LABEL[dimension.level]})
+                  </span>
+                </div>
+                <Progress value={dimension.confidence * 100} className="h-2 bg-slate-700" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         <div className="flex gap-3">
           <Button

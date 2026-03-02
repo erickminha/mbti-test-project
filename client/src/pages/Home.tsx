@@ -6,7 +6,7 @@ import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
 import { marketingLegalReview } from "@shared/content/legal";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
-import type { MBTIResult } from "@/types/mbti";
+import type { MBTIResult } from "@/lib/mbti-types";
 
 export default function Home() {
   const [testStarted, setTestStarted] = useState(false);
