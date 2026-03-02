@@ -1,26 +1,8 @@
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCcw, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-
-const MBTI_TYPES: Record<string, any> = {
-  ISTJ: { title: "The Logistician", desc: "Practical, fact-oriented, reliable, and responsible" },
-  ISFJ: { title: "The Defender", desc: "Warm, conscientious, and dedicated to serving others" },
-  INFJ: { title: "The Advocate", desc: "Insightful, principled, and passionate about their values" },
-  INTJ: { title: "The Architect", desc: "Strategic, independent, and focused on long-term goals" },
-  ISTP: { title: "The Virtuoso", desc: "Practical, logical, and adaptable" },
-  ISFP: { title: "The Adventurer", desc: "Artistic, sensitive, and adventurous" },
-  INFP: { title: "The Mediator", desc: "Idealistic, creative, and compassionate" },
-  INTP: { title: "The Logician", desc: "Analytical, innovative, and curious" },
-  ESTP: { title: "The Entrepreneur", desc: "Energetic, pragmatic, and action-oriented" },
-  ESFP: { title: "The Entertainer", desc: "Spontaneous, friendly, and outgoing" },
-  ENFP: { title: "The Campaigner", desc: "Enthusiastic, creative, and people-oriented" },
-  ENTP: { title: "The Debater", desc: "Innovative, curious, and argumentative" },
-  ESTJ: { title: "The Executive", desc: "Organized, logical, and leadership-oriented" },
-  ESFJ: { title: "The Consul", desc: "Warm, responsible, and people-focused" },
-  ENFJ: { title: "The Protagonist", desc: "Charismatic, empathetic, and inspiring" },
-  ENTJ: { title: "The Commander", desc: "Strategic, decisive, and commanding" },
-};
 
 interface MBTIResultsProps {
   result: {
@@ -31,15 +13,57 @@ interface MBTIResultsProps {
   onRestart: () => void;
 }
 
+interface TypeContent {
+  type: string;
+  version: string;
+  reviewDate: string;
+  resumo: string;
+  forcas: string[];
+  riscos: string[];
+  carreira: string;
+  relacionamentos: string;
+  desenvolvimento: string;
+}
+
+interface DynamicInsights {
+  focoAtual: string;
+  tomadaDecisao: string;
+  ritmo: string;
+}
+
 export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
-  const typeInfo = MBTI_TYPES[result.type] || { title: "Unknown", desc: "Unknown type" };
-  
-  const chartData = [
-    { name: "E/I", E: result.percentages.e, I: result.percentages.i },
-    { name: "S/N", S: result.percentages.s, N: result.percentages.n },
-    { name: "T/F", T: result.percentages.t, F: result.percentages.f },
-    { name: "J/P", J: result.percentages.j, P: result.percentages.p },
-  ];
+  const [content, setContent] = useState<TypeContent | null>(null);
+  const [insights, setInsights] = useState<DynamicInsights | null>(null);
+
+  useEffect(() => {
+    const loadContent = async () => {
+      const response = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: result.type, percentages: result.percentages }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao carregar conteúdo do tipo MBTI.");
+      }
+
+      const payload = await response.json();
+      setContent(payload.staticContent);
+      setInsights(payload.dynamicInsights);
+    };
+
+    loadContent().catch(console.error);
+  }, [result.type, result.percentages]);
+
+  const chartData = useMemo(
+    () => [
+      { name: "E/I", E: result.percentages.e, I: result.percentages.i },
+      { name: "S/N", S: result.percentages.s, N: result.percentages.n },
+      { name: "T/F", T: result.percentages.t, F: result.percentages.f },
+      { name: "J/P", J: result.percentages.j, P: result.percentages.p },
+    ],
+    [result.percentages],
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
@@ -52,15 +76,15 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
               </div>
             </div>
             <CardTitle className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-              {typeInfo.title}
+              Resultado MBTI
             </CardTitle>
-            <p className="text-lg text-slate-300">{typeInfo.desc}</p>
+            <p className="text-lg text-slate-300">{content?.resumo ?? "Carregando conteúdo editorial..."}</p>
           </CardHeader>
         </Card>
 
         <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
           <CardHeader>
-            <CardTitle className="text-2xl text-white">Your Personality Breakdown</CardTitle>
+            <CardTitle className="text-2xl text-white">Seu gráfico de preferências</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -68,7 +92,7 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
                 <XAxis dataKey="name" stroke="#94a3b8" />
                 <YAxis stroke="#94a3b8" />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #475569" }}
                   labelStyle={{ color: "#e2e8f0" }}
                 />
@@ -86,47 +110,69 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border-purple-500/30 bg-slate-900/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-2">Extroversion</p>
-                <p className="text-3xl font-bold text-purple-400">{result.percentages.e}%</p>
-                <p className="text-xs text-slate-500 mt-2">E vs I</p>
-              </div>
-            </CardContent>
-          </Card>
+        {content && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card className="border-purple-500/30 bg-slate-900/50">
+              <CardHeader>
+                <CardTitle className="text-white">Forças</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-300">
+                <ul className="list-disc ml-5 space-y-2">
+                  {content.forcas.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
 
-          <Card className="border-purple-500/30 bg-slate-900/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-2">Sensing</p>
-                <p className="text-3xl font-bold text-orange-400">{result.percentages.s}%</p>
-                <p className="text-xs text-slate-500 mt-2">S vs N</p>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="border-purple-500/30 bg-slate-900/50">
+              <CardHeader>
+                <CardTitle className="text-white">Riscos</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-300">
+                <ul className="list-disc ml-5 space-y-2">
+                  {content.riscos.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
 
-          <Card className="border-purple-500/30 bg-slate-900/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-2">Thinking</p>
-                <p className="text-3xl font-bold text-cyan-400">{result.percentages.t}%</p>
-                <p className="text-xs text-slate-500 mt-2">T vs F</p>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="border-purple-500/30 bg-slate-900/50">
+              <CardHeader>
+                <CardTitle className="text-white">Carreira</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-300">{content.carreira}</CardContent>
+            </Card>
 
-          <Card className="border-purple-500/30 bg-slate-900/50">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-2">Judging</p>
-                <p className="text-3xl font-bold text-green-400">{result.percentages.j}%</p>
-                <p className="text-xs text-slate-500 mt-2">J vs P</p>
-              </div>
+            <Card className="border-purple-500/30 bg-slate-900/50">
+              <CardHeader>
+                <CardTitle className="text-white">Relacionamentos</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-300">{content.relacionamentos}</CardContent>
+            </Card>
+
+            <Card className="border-purple-500/30 bg-slate-900/50 md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-white">Desenvolvimento</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-300">{content.desenvolvimento}</CardContent>
+            </Card>
+          </div>
+        )}
+
+        {insights && (
+          <Card className="border-blue-500/30 bg-slate-900/50 mb-6">
+            <CardHeader>
+              <CardTitle className="text-white">Insights dinâmicos (sessão atual)</CardTitle>
+            </CardHeader>
+            <CardContent className="text-slate-300 space-y-2">
+              <p>{insights.focoAtual}</p>
+              <p>{insights.tomadaDecisao}</p>
+              <p>{insights.ritmo}</p>
             </CardContent>
           </Card>
-        </div>
+        )}
 
         <div className="flex gap-3">
           <Button
@@ -134,14 +180,14 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
             className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-6 text-lg rounded-lg shadow-lg transition-all duration-300"
           >
             <RotateCcw className="w-5 h-5 mr-2" />
-            Take Test Again
+            Refazer teste
           </Button>
           <Button
             variant="outline"
             className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 font-semibold py-6 text-lg rounded-lg"
           >
             <Share2 className="w-5 h-5 mr-2" />
-            Share Result
+            Compartilhar
           </Button>
         </div>
       </div>
