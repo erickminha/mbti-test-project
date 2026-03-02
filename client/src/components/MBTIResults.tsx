@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { RotateCcw, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { buildExperimentSummary, getOrAssignVariant, OfferVariant, trackEvent } from "@/lib/funnelAnalytics";
 
 interface MBTIResultsProps {
-  result: {
-    type: string;
-    scores: Record<string, number>;
-    percentages: Record<string, number>;
-  };
+  result: MBTIResult;
   onRestart: () => void;
 }
 
@@ -65,9 +63,29 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
     [result.percentages],
   );
 
+  const beginCheckout = () => {
+    trackEvent("checkout_started");
+    setCheckoutOpen(true);
+  };
+
+  const approvePayment = () => {
+    if (!selectedPrice) return;
+    trackEvent("payment_approved", { amount: selectedPrice });
+    setPaymentDone(true);
+  };
+
+  const sendFeedback = (score: number) => {
+    trackEvent("post_purchase_feedback", { satisfactionScore: score });
+    setFeedbackSent(true);
+  };
+
+  const askRefund = () => {
+    trackEvent("refund_requested");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 py-8">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-5xl">
         <Card className="border-purple-500/30 bg-slate-900/50 backdrop-blur-sm shadow-2xl mb-6">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center mb-4">
