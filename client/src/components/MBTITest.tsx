@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { computeDimensionConfidence, getProfileConfidence } from "@/lib/psychometrics";
+import type { MBTIResult } from "@/lib/mbti-types";
 
 const MBTI_QUESTIONS = [
   { q: "At a party do you:", a: "Interact with many, including strangers", b: "Interact with a few, known to you", dichotomy: "e/i" },
@@ -18,7 +20,7 @@ const MBTI_QUESTIONS = [
 ];
 
 interface MBTITestProps {
-  onComplete: (result: any) => void;
+  onComplete: (result: MBTIResult) => void;
 }
 
 export default function MBTITest({ onComplete }: MBTITestProps) {
@@ -47,7 +49,7 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
     }
   };
 
-  const calculateMBTIResult = (answers: Record<number, string>) => {
+  const calculateMBTIResult = (answers: Record<number, string>): MBTIResult => {
     const scores = { e: 0, i: 0, s: 0, n: 0, t: 0, f: 0, j: 0, p: 0 };
 
     Object.entries(answers).forEach(([index, answer]) => {
@@ -78,7 +80,10 @@ export default function MBTITest({ onComplete }: MBTITestProps) {
       p: Math.round((scores.p / (scores.j + scores.p)) * 100),
     };
 
-    return { type, scores, percentages };
+    const dimensionConfidence = computeDimensionConfidence(scores);
+    const profileConfidence = getProfileConfidence(dimensionConfidence);
+
+    return { type, scores, percentages, dimensionConfidence, profileConfidence };
   };
 
   const question = MBTI_QUESTIONS[currentQuestion];

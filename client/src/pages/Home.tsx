@@ -5,17 +5,18 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronRight, RotateCcw } from "lucide-react";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
+import type { MBTIResult } from "@/lib/mbti-types";
 
 export default function Home() {
   const [testStarted, setTestStarted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [mbtiResult, setMbtiResult] = useState<any>(null);
+  const [mbtiResult, setMbtiResult] = useState<MBTIResult | null>(null);
 
   const handleStartTest = () => {
     setTestStarted(true);
   };
 
-  const handleTestComplete = (result: any) => {
+  const handleTestComplete = (result: MBTIResult) => {
     setMbtiResult(result);
     setTestCompleted(true);
   };
