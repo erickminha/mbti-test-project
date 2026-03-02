@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RotateCcw, Share2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
 
 const MBTI_TYPES: Record<string, any> = {
   ISTJ: { title: "The Logistician", desc: "Practical, fact-oriented, reliable, and responsible" },
@@ -127,6 +128,8 @@ export default function MBTIResults({ result, onRestart }: MBTIResultsProps) {
             </CardContent>
           </Card>
         </div>
+
+        <LegalDisclaimer surface="results" />
 
         <div className="flex gap-3">
           <Button

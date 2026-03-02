@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import LegalDisclaimer from "@/components/legal/LegalDisclaimer";
+import { marketingLegalReview } from "@shared/content/legal";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
 
@@ -56,7 +57,7 @@ export default function Home() {
               Teste de Personalidade MBTI
             </CardTitle>
             <CardDescription className="text-lg text-slate-300">
-              Descubra seu tipo de personalidade através de 70 questões cuidadosamente elaboradas
+              Descubra tendências do seu perfil de personalidade através de perguntas de autorreflexão
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -67,7 +68,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-1">70 Questões Autênticas</h3>
-                  <p className="text-sm">Baseadas na metodologia oficial de Myers-Briggs Type Indicator</p>
+                  <p className="text-sm">Inspiradas em modelos de tipologia para apoiar autoconhecimento</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -94,6 +95,20 @@ export default function Home() {
               <p className="text-sm text-slate-300">
                 <span className="font-semibold text-purple-300">Tempo estimado:</span> 10-15 minutos
               </p>
+            </div>
+
+            <LegalDisclaimer surface="onboarding" />
+
+            <div className="bg-slate-950/40 border border-slate-700 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-semibold text-white">{marketingLegalReview.title}</p>
+              <p className="text-xs text-slate-300">
+                Termos sensíveis para evitar sem validação formal: {marketingLegalReview.avoidClaims.join(", ")}.
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-xs text-slate-400">
+                {marketingLegalReview.guidance.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
             </div>
 
             <Button
