@@ -5,6 +5,8 @@ import { ChevronRight, ShieldAlert } from "lucide-react";
 import MBTITest from "@/components/MBTITest";
 import MBTIResults from "@/components/MBTIResults";
 import type { MBTIResult } from "@/types/mbti";
+import { marketingLegalReview } from "@shared/content/legal";
+import { trackEvent } from "@/lib/funnelAnalytics";
 
 export default function Home() {
   const [testStarted, setTestStarted] = useState(false);
