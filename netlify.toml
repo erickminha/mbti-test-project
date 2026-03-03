@@ -2,6 +2,9 @@
   command = "pnpm build"
   publish = "dist/public"
 
+[build.environment]
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
