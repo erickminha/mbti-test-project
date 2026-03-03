@@ -1,0 +1,104 @@
+[
+  {
+    "participantId": "P001",
+    "timestamp": "2026-02-01T10:00:00Z",
+    "responses": {
+      "full": ["a", "a", "b", "a", "a", "b", "a", "a", "b", "a"],
+      "short": ["a", "b", "a", "b"],
+      "adaptive": ["a", "a", "b", "a", "b", "a"]
+    },
+    "retest": {
+      "timestamp": "2026-02-15T10:00:00Z",
+      "full": ["a", "a", "b", "a", "b", "b", "a", "a", "b", "a"]
+    },
+    "clarityFeedback": {
+      "rating": 4,
+      "comment": "Perguntas diretas, mas duas questões parecidas entre si."
+    }
+  },
+  {
+    "participantId": "P002",
+    "timestamp": "2026-02-01T11:30:00Z",
+    "responses": {
+      "full": ["b", "b", "a", "b", "b", "a", "b", "b", "a", "b"],
+      "short": ["b", "a", "b", "a"],
+      "adaptive": ["b", "b", "a", "b", "a", "b"]
+    },
+    "retest": {
+      "timestamp": "2026-02-16T11:30:00Z",
+      "full": ["b", "b", "a", "b", "b", "a", "a", "b", "a", "b"]
+    },
+    "clarityFeedback": {
+      "rating": 5,
+      "comment": "Texto simples e fácil de responder."
+    }
+  },
+  {
+    "participantId": "P003",
+    "timestamp": "2026-02-02T09:15:00Z",
+    "responses": {
+      "full": ["a", "b", "b", "a", "b", "a", "a", "b", "b", "a"],
+      "short": ["a", "b", "b", "a"],
+      "adaptive": ["a", "b", "b", "a", "a", "b"]
+    },
+    "retest": {
+      "timestamp": "2026-02-18T09:15:00Z",
+      "full": ["a", "b", "b", "a", "b", "a", "a", "b", "b", "a"]
+    },
+    "clarityFeedback": {
+      "rating": 3,
+      "comment": "Algumas opções parecem muito extremas."
+    }
+  },
+  {
+    "participantId": "P004",
+    "timestamp": "2026-02-03T14:45:00Z",
+    "responses": {
+      "full": ["b", "a", "a", "b", "a", "b", "b", "a", "a", "b"],
+      "short": ["b", "a", "a", "b"],
+      "adaptive": ["b", "a", "a", "b", "b", "a"]
+    },
+    "retest": {
+      "timestamp": "2026-02-17T14:45:00Z",
+      "full": ["b", "a", "a", "b", "a", "b", "b", "a", "a", "b"]
+    },
+    "clarityFeedback": {
+      "rating": 4,
+      "comment": "No geral bom, poderia ter exemplos práticos."
+    }
+  },
+  {
+    "participantId": "P005",
+    "timestamp": "2026-02-04T08:20:00Z",
+    "responses": {
+      "full": ["a", "a", "a", "a", "b", "b", "a", "a", "a", "a"],
+      "short": ["a", "a", "b", "a"],
+      "adaptive": ["a", "a", "a", "a", "b", "a"]
+    },
+    "retest": {
+      "timestamp": "2026-02-19T08:20:00Z",
+      "full": ["a", "a", "a", "a", "b", "b", "a", "a", "a", "a"]
+    },
+    "clarityFeedback": {
+      "rating": 4,
+      "comment": "Leitura rápida e objetiva."
+    }
+  },
+  {
+    "participantId": "P006",
+    "timestamp": "2026-02-04T16:10:00Z",
+    "responses": {
+      "full": ["b", "b", "b", "b", "a", "a", "b", "b", "b", "b"],
+      "short": ["b", "b", "a", "b"],
+      "adaptive": ["b", "b", "b", "b", "a", "b"]
+    },
+    "retest": {
+      "timestamp": "2026-02-20T16:10:00Z",
+      "full": ["b", "b", "b", "b", "a", "a", "b", "b", "b", "a"]
+    },
+    "clarityFeedback": {
+      "rating": 5,
+      "comment": "Muito claro e consistente com a minha percepção."
+    }
+  }
+]
